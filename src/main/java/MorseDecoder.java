@@ -40,7 +40,7 @@ public class MorseDecoder {
      * @param inputFile the input file to process
      * @return the double[] array of power measurements, one per bin
      * @throws WavFileException thrown if there is a WavFile-specific IO error
-     * @throws IOException thrown on other IO errors
+     * @throws IOException      thrown on other IO errors
      */
     private static double[] binWavFilePower(final WavFile inputFile)
             throws IOException, WavFileException {
@@ -50,19 +50,27 @@ public class MorseDecoder {
          */
         int totalBinCount = (int) Math.ceil(inputFile.getNumFrames() / BIN_SIZE);
         double[] returnBuffer = new double[totalBinCount];
-
         double[] sampleBuffer = new double[BIN_SIZE * inputFile.getNumChannels()];
         for (int binIndex = 0; binIndex < totalBinCount; binIndex++) {
+            inputFile.readFrames(sampleBuffer, BIN_SIZE);
+            for (int i = 0; i < BIN_SIZE; i++) {
+                sampleBuffer[i] = Math.abs(sampleBuffer[i]);
+                returnBuffer[binIndex] += sampleBuffer[i];
+            }
             // Get the right number of samples from the inputFile
             // Sum all the samples together and store them in the returnBuffer
         }
         return returnBuffer;
     }
 
-    /** Power threshold for power or no power. You may need to modify this value. */
+    /**
+     * Power threshold for power or no power. You may need to modify this value.
+     */
     private static final double POWER_THRESHOLD = 10;
 
-    /** Bin threshold for dots or dashes. Related to BIN_SIZE. You may need to modify this value. */
+    /**
+     * Bin threshold for dots or dashes. Related to BIN_SIZE. You may need to modify this value.
+     */
     private static final int DASH_BIN_COUNT = 8;
 
     /**
@@ -81,14 +89,37 @@ public class MorseDecoder {
          * There are four conditions to handle. Symbols should only be output when you see
          * transitions. You will also have to store how much power or silence you have seen.
          */
-
-        // if ispower and waspower
-        // else if ispower and not waspower
-        // else if issilence and wassilence
-        // else if issilence and not wassilence
-
-        return "";
+        String returnString = "";
+        int count = 0;
+        int zero = 0;
+        for (int i = 0; i < powerMeasurements.length - 1; i++) {
+            if (powerMeasurements[i] >= POWER_THRESHOLD) {
+                count++;
+                if (powerMeasurements[i + 1] < POWER_THRESHOLD) {
+                    if (count > DASH_BIN_COUNT) {
+                        returnString += "-";
+                    } else {
+                        returnString += ".";
+                    }
+                    count = 0;
+                }
+            } else {
+                zero++;
+                if (powerMeasurements[i + 1] > POWER_THRESHOLD) {
+                    if (zero >= DASH_BIN_COUNT) {
+                        returnString += " ";
+                    }
+                    zero = 0;
+                }
+            }
+            // if ispower and waspower
+            // else if ispower and not waspower
+            // else if issilence and wassilence
+            // else if issilence and not wassilence
+        }
+        return returnString;
     }
+
 
     /**
      * Morse code to alpha mapping.
@@ -172,7 +203,7 @@ public class MorseDecoder {
      * @param inputFile the input file to process
      * @return the decoded Morse code from the WAV file as a string
      * @throws WavFileException thrown if there is a WavFile-specific IO error
-     * @throws IOException thrown on other IO errors
+     * @throws IOException      thrown on other IO errors
      */
     public static String morseWavToString(final WavFile inputFile)
             throws IOException, WavFileException {
